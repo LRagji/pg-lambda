@@ -1,0 +1,34 @@
+{
+  "name": "pg-lambda",
+  "version": "0.0.1",
+  "description": "pg based lambda functions for data transformation pipelines",
+  "main": "index.js",
+  "engines": {
+    "node": ">=12.18.4"
+  },
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LRagji/pg-lambda.git"
+  },
+  "keywords": [
+    "pg",
+    "lambda",
+    "laukik",
+    "jsonata",
+    "expressions"
+  ],
+  "author": "Laukik",
+  "license": "SEE LICENSE IN license.md",
+  "bugs": {
+    "url": "https://github.com/LRagji/pg-lambda/issues"
+  },
+  "homepage": "https://github.com/LRagji/pg-lambda#readme",
+  "dependencies": {
+    "jsonata": "git+https://github.com/LRagji/jsonata.git#Laukik",
+    "pg-promise": "^10.6.2",
+    "pg-que": "0.0.3"
+  }
+}
