@@ -18,35 +18,44 @@ const inputQ = new QType("iBit", readConfigParams, writeConfigParams, schema);
 const outputQ = new QType("oBit", readConfigParams, writeConfigParams, schema);
 const bitExpression = `($x:= λ($c,$n,$b){ $c=$b?$n%2:$x($c+1,$floor($n/2),$b)};$x(0,number,bitIndex))`;
 const runningAverage = `{
-    "input":(($exists(result.state.sum.value)?result.state.sum.value:0)+result.input)/(($exists(result.state.count.value)?result.state.coun.value:0)+1),
-    "state":{
-        "count":{
-            "value":($exists(result.state.count.value)?result.state.coun.value:0)+1,
-            "expiry":100
-        },
-        "sum":{
-            "value":($exists(result.state.sum.value)?result.state.sum.value:0)+result.input,
-            "expiry":100
-        }
-    }
+    "data":(($exists(pstep.state.sum.value)?pstep.state.sum.value:0)+data)/(($exists(pstep.state.count.value)?pstep.state.count.value:0)+1),
+    "pstep":{
+        "state":{
+                "count":{
+                    "value":($exists(pstep.state.count.value)?pstep.state.count.value:0)+1,
+                    "expiry":null
+                },
+                "sum":{
+                    "value":($exists(pstep.state.sum.value)?pstep.state.sum.value:0)+data,
+                    "expiry":null
+                }
+            }
+     }
 }`;
 const stateStore = { "readerPG": readConfigParams, "writerPG": writeConfigParams, "schema": schema };
 const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverage, stateStore);
 
 main = async () => {
-    await inputQ.enque([{ "result": { "input": 1 } }]);
+    let ctr = 1000;
+    console.log("Expected answer: " + ((ctr * (ctr + 1) / 2) / ctr));
+    while (ctr > 0) {
+        await inputQ.enque([{ "data": ctr }]);
+        ctr--;
+    }
     await BitFetcherLambda.startProcessing();
-    //await sleep(200000);
+    //await sleep(2000);
+    //(ctr*(ctr+1))/ctr
 }
 
 main();
 // console.time("Application");
 // main().then((r) => {
-//     BitFetcherLambda.stopProcessing();
-//     console.timeEnd("Application");
-//     BitFetcherLambda.dispose();
-//     inputQ.dispose();
-//     outputQ.dispose();
+//     BitFetcherLambda.stopProcessing().finally(() => {
+//         console.timeEnd("Application");
+//         BitFetcherLambda.dispose();
+//         inputQ.dispose();
+//         outputQ.dispose();
+//     })
 // })
 
 // {
