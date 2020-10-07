@@ -9,7 +9,6 @@ const previousStep = 'pstep';
 
 module.exports = class PgLambda {
 
-    #pgp;
     #readerPG;
     #writerPG;
     #schemaInitialized = false;
@@ -26,21 +25,15 @@ module.exports = class PgLambda {
     #currentOperation;
 
     constructor(name, inputQ, outputQ, expression, stateStore, workers = 0) {
-        stateStore.schema = stateStore.schema || "public";
+
         name = crypto.createHash('md5').update(name).digest('hex');
-        const initOptions = {
-            // query(e) {
-            //     console.log(e.query);
-            // },
-            "schema": stateStore.schema
-        };
-        this.#pgp = pg(initOptions);
-        this.#readerPG = this.#pgp(stateStore.readerPG);
-        this.#writerPG = qType.checkForSimilarConnection(stateStore.readerPG, stateStore.writerPG, this.#readerPG, (c) => this.#pgp(c));
+
+        this.#readerPG = stateStore.readerPG;
+        this.#writerPG = stateStore.writerPG;
         this.#expressionName = "L-" + name;
         this.#expressionNamePK = this.#expressionName + "-PK";
         this.#LambdaVersionFunctionName = "LVF-" + name;
-        this.#queries = queries(this.#expressionName, this.#expressionNamePK, stateStore.schema, this.#LambdaVersionFunctionName);
+        this.#queries = queries(this.#expressionName, this.#expressionNamePK, (this.#readerPG.$config.options.schema || 'public'), this.#LambdaVersionFunctionName);
         this.#expression = expression;
         this.#inputQ = inputQ;
         this.#outputQ = outputQ;
@@ -55,28 +48,28 @@ module.exports = class PgLambda {
 
     #initialize = async (version) => {
         if (this.#schemaInitialized === true) return;
-        let someVersionExists = await this.#readerPG.one(this.#queries.VersionFunctionExists);
-        if (someVersionExists.exists === true) {
-            const existingVersion = await this.#readerPG.one(this.#queries.CheckSchemaVersion);
-            if (existingVersion.LambdaVersion === version) {
-                this.#schemaInitialized = true;
-                return;
-            }
-        }
+
 
         await this.#writerPG.tx(async transaction => {
-            let acquired = await transaction.one(this.#queries.TransactionLock, [("Lambda" + version)]);
-            if (acquired.Locked === true) {
-                for (let idx = 0; idx < this.#queries["Schema0.0.1"].length; idx++) {
-                    let step = this.#queries["Schema0.0.1"][idx];
-                    step.params.push(this.#expressionName);
-                    step.params.push(this.#expressionNamePK);
-                    step.params.push(version);
-                    step.params.push(this.#LambdaVersionFunctionName);
-                    await transaction.none(step.file, step.params);
-                };
+            await transaction.one(this.#queries.TransactionLock, [("Lambda" + version)]);
+
+            let someVersionExists = await this.#readerPG.one(this.#queries.VersionFunctionExists);
+            if (someVersionExists.exists === true) {
+                const existingVersion = await this.#readerPG.one(this.#queries.CheckSchemaVersion);
+                if (existingVersion.LambdaVersion === version) {
+                    this.#schemaInitialized = true;
+                    return;
+                }
+            }
+
+            for (let idx = 0; idx < this.#queries["Schema0.0.1"].length; idx++) {
+                let step = this.#queries["Schema0.0.1"][idx];
+                step.params.push(this.#expressionName);
+                step.params.push(this.#expressionNamePK);
+                step.params.push(version);
+                step.params.push(this.#LambdaVersionFunctionName);
+                await transaction.none(step.file, step.params);
             };
-            return;
         });
         this.#schemaInitialized = true;
     }
@@ -115,7 +108,6 @@ module.exports = class PgLambda {
         await this.#contractor.dispose();
         if (this.#inputQ) this.#inputQ = undefined;
         if (this.#outputQ) this.#outputQ = undefined;
-        this.#pgp.end();
     }
 
     #process = () => {

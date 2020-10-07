@@ -7,7 +7,7 @@ function sql(file) {
     return new QueryFile(fullPath, { minify: true });
 }
 module.exports = (expressionName, expressionPK, schema, lvf) => ({
-    "TransactionLock": new PreparedStatement({ name: 'TransactionLock', text: `SELECT pg_try_advisory_xact_lock(hashtext($1)) as "Locked";` }),
+    "TransactionLock": new PreparedStatement({ name: 'TransactionLock', text: `SELECT pg_advisory_xact_lock(hashtext($1)) as "Locked";` }),
     "FetchState": new PreparedStatement({
         name: 'FetchState', text: pgPromise.as.format(`SELECT jsonb_object_agg("Name",jsonb_build_object('value',"Value",'expiry',EXTRACT('epoch' from "Expiry")::Integer)) as "State"
         FROM $[expressionname:name]

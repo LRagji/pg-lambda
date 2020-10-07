@@ -1,8 +1,17 @@
 const lambdaType = require('../index');
-const QType = require('/Users/laukikragji/Documents/Git/Personal/pg-queue/index.js');
+const initOptions = {
+    // query(e) {
+    //     console.log(e.query);
+    // },
+    "schema": "Lambda"
+};
+const pgp = require('pg-promise')(initOptions);
+pgp.pg.types.setTypeParser(20, BigInt); // This is for serialization bug of BigInts as strings.
+pgp.pg.types.setTypeParser(1114, str => str); // UTC Timestamp Formatting Bug, 1114 is OID for timestamp in Postgres.
+const QType = require('pg-que');
 const defaultConectionString = "postgres://postgres:@localhost:5432/QUEUE";
 const sleep = (sleepTime) => new Promise((a, r) => setTimeout(a, sleepTime));
-const schema = "Test";
+
 const readConfigParams = {
     connectionString: defaultConectionString,
     application_name: "Example1-Queue-Reader",
@@ -13,9 +22,10 @@ const writeConfigParams = {
     application_name: "Example1-Queue-Writer",
     max: 2 //2 Writer
 };
-
-const inputQ = new QType("iBit", readConfigParams, writeConfigParams, schema);
-const outputQ = new QType("oBit", readConfigParams, writeConfigParams, schema);
+const pgReader = pgp(readConfigParams);
+const pgWriter = pgp(writeConfigParams);
+const inputQ = new QType("iBit", pgReader, pgWriter);
+const outputQ = new QType("oBit", pgReader, pgWriter);
 const bitExpression = `($x:= λ($c,$n,$b){ $c=$b?$n%2:$x($c+1,$floor($n/2),$b)};$x(0,number,bitIndex))`;
 const runningAverage = `{
     "data":(($exists(pstep.state.sum.value)?pstep.state.sum.value:0)+data)/(($exists(pstep.state.count.value)?pstep.state.count.value:0)+1),
@@ -32,7 +42,7 @@ const runningAverage = `{
             }
      }
 }`;
-const stateStore = { "readerPG": readConfigParams, "writerPG": writeConfigParams, "schema": schema };
+const stateStore = { "readerPG": pgReader, "writerPG": pgWriter };
 const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverage, stateStore);
 
 main = async () => {
