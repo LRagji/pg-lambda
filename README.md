@@ -5,73 +5,73 @@ This package is an implementation of data transformational pipeline based on JSO
 2. Timeouts for JSONata expressions.
 3. Message persistence with postgres.
 4. Can be used with H-Scaled services or with mutiple threads within a single process.
+5. Pause and Resume execution.
 
-<!-- ## Getting Started
+## Getting Started
 
-1. Install using `npm i pg-que`
-2. Require in your project. `const QType = require('pg-que');`
+1. Install using `npm i pg-lambda`
+2. Require in your project. `const QType = require('pg-lambda');`
 3. Run postgres as local docker if required. `docker run --name pg-12.4 -e POSTGRES_PASSWORD=mysecretpassword -e POSTGRES_DB=pg-queue -p 5432:5432 -d postgres:12.4-alpine`
 4. Instantiate with a postgres readers and writers connection details. 
 5. All done, Start using it!!.
 
 ## Examples/Code snippets
 
-A complete example can be found at [here](https://raw.githubusercontent.com/LRagji/pg-queue/master/examples/default.js)
+A complete example can be found at [here](https://raw.githubusercontent.com/LRagji/pg-lambda/master/examples/default.js)
 
 1. **Initialize**
 ```javascript
+const lambdaType = require('pg-lambda');
 const QType = require('pg-que');
+const pgp = require('pg-promise')();
+pgp.pg.types.setTypeParser(20, BigInt); // This is for serialization bug of BigInts as strings.
+pgp.pg.types.setTypeParser(1114, str => str); // UTC Timestamp Formatting Bug, 1114 is OID for timestamp in Postgres.
 const defaultConectionString = "postgres://postgres:@localhost:5432/pg-queue";
 const readConfigParams = {
     connectionString: defaultConectionString,
-    application_name: "Queue-Reader",
+    application_name: "Lambda-Reader",
     max: 4 //4 readers
 };
 const writeConfigParams = {
     connectionString: defaultConectionString,
-    application_name: "Queue-Writer",
+    application_name: "Lambda-Writer",
     max: 2 //2 Writer
 };
-const Qname = "Laukik";
-const Q = new QType(Qname, readConfigParams, writeConfigParams);
+const pgReader = pgp(readConfigParams);
+const pgWriter = pgp(writeConfigParams);
+const inputQ = new QType("iBit", pgReader, pgWriter);
+const outputQ = new QType("oBit", pgReader, pgWriter);
+const runningAverageExpression = `{
+    "data":(($exists(pstep.state.sum.value)?pstep.state.sum.value:0)+data)/(($exists(pstep.state.count.value)?pstep.state.count.value:0)+1),
+    "pstep":{
+        "state":{
+                "count":{
+                    "value":($exists(pstep.state.count.value)?pstep.state.count.value:0)+1,
+                    "expiry":null
+                },
+                "sum":{
+                    "value":($exists(pstep.state.sum.value)?pstep.state.sum.value:0)+data,
+                    "expiry":null
+                }
+            }
+     }
+}`;
+const stateStore = { "readerPG": pgReader, "writerPG": pgWriter };
+const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverageExpression, stateStore);
 ```
 
-2. **Enqueue**
+2. **Start Processing**
 ```javascript
-await Q.enque([1,2,3,4,5]);
+await BitFetcherLambda.startProcessing();
 ```
-3. **Dequeue**
+3. **Stop Processing**
 ```javascript
-const payload = await Q.tryDeque();
+await BitFetcherLambda.stopProcessing()
 ```
-4. **Acknowledge**
+4. **Dispose**
 ```javascript
-const payload = await Q.tryDeque();
-const acked = await Q.tryAcknowledge(payload.AckToken);
-console.log(acked);
+await BitFetcherLambda.dispose();//Waits for current message processing to complete.
 ```
-5. **Dispose**
-```javascript
-Q.dispose();//Releases all resources including connections.
-```
-
-## Theory
-
-### *Why build one when there are tons of options avaialble for distributed queue?*
-Yes, there are N options available for queues, eg: RabbitMQ, Redis Streams, Kafka etc, but they all are different systems, which means application has to maintain sync between them and cater to failure modes for system being different. There was a need for one stop solution for all these common scenarios of applications and thus this package came into existence.
-
-### *Can this be adopted to different languages?*
-Yes, it uses concepts which are PG based and not language specific so yes a port is possible.
-
-### *What core concepts have been used?*
-1. **SERIALIZABLE Transactions**: This is a transaction mode in PG, used to make sure only one subscriber get into the que at a time.
-2. **Cursors**: Each subscriber maintains a cursor of what was read by it, it will not increment until ack has been received for the same.
-3. **Acknowledgements**: Each message once read can be marked as completed and done with acks, this helps to confirm consumptions on the subscriber side and for cursor to move ahead.
-4. **Timeouts**: if a subscriber acquires a message and then abprutly dies. The same message can be picked up by other subscriber after a certain timeout.
-
-### *What different modes are supported?*
-Mode 1: Simple Que with multiple publishers and multiple subscribers and messages getting sequentially executed between them, as shown below , more modes may land in future. -->
-
 
 ## Built with
 

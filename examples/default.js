@@ -1,4 +1,4 @@
-const lambdaType = require('../index');
+const lambdaType = require('../pg-lambda');
 const initOptions = {
     // query(e) {
     //     console.log(e.query);
@@ -27,7 +27,7 @@ const pgWriter = pgp(writeConfigParams);
 const inputQ = new QType("iBit", pgReader, pgWriter);
 const outputQ = new QType("oBit", pgReader, pgWriter);
 const bitExpression = `($x:= λ($c,$n,$b){ $c=$b?$n%2:$x($c+1,$floor($n/2),$b)};$x(0,number,bitIndex))`;
-const runningAverage = `{
+const runningAverageExpression = `{
     "data":(($exists(pstep.state.sum.value)?pstep.state.sum.value:0)+data)/(($exists(pstep.state.count.value)?pstep.state.count.value:0)+1),
     "pstep":{
         "state":{
@@ -43,7 +43,7 @@ const runningAverage = `{
      }
 }`;
 const stateStore = { "readerPG": pgReader, "writerPG": pgWriter };
-const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverage, stateStore);
+const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverageExpression, stateStore);
 
 main = async () => {
     let ctr = 1000;

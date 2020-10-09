@@ -2,7 +2,7 @@
   "name": "pg-lambda",
   "version": "0.0.1",
   "description": "pg based lambda functions for data transformation pipelines",
-  "main": "index.js",
+  "main": "pg-lambda.js",
   "engines": {
     "node": ">=12.18.4"
   },
@@ -30,6 +30,6 @@
     "jsonata": "git+https://github.com/LRagji/jsonata.git#Laukik",
     "pg-boot": "0.0.2",
     "pg-promise": "^10.6.2",
-    "pg-que": "0.0.6"
+    "pg-que": "0.0.7"
   }
 }
