@@ -62,8 +62,8 @@ module.exports = class PgLambda {
                 }
             }
 
-            for (let idx = 0; idx < this.#queries["Schema0.0.1"].length; idx++) {
-                let step = this.#queries["Schema0.0.1"][idx];
+            for (let idx = 0; idx < this.#queries.Schema0.length; idx++) {
+                let step = this.#queries.Schema0[idx];
                 step.params.push(this.#expressionName);
                 step.params.push(this.#expressionNamePK);
                 step.params.push(version);

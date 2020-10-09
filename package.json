@@ -7,7 +7,7 @@
     "node": ">=12.18.4"
   },
   "scripts": {
-    "test": "test"
+    "test": "node ./examples/default.js"
   },
   "repository": {
     "type": "git",
@@ -28,7 +28,8 @@
   "homepage": "https://github.com/LRagji/pg-lambda#readme",
   "dependencies": {
     "jsonata": "git+https://github.com/LRagji/jsonata.git#Laukik",
+    "pg-boot": "0.0.2",
     "pg-promise": "^10.6.2",
-    "pg-que": "0.0.5"
+    "pg-que": "0.0.6"
   }
 }

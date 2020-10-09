@@ -6,6 +6,12 @@ function sql(file) {
     const fullPath = path.join(__dirname, file); // generating full path;
     return new QueryFile(fullPath, { minify: true });
 }
+const schema0 = [
+    {
+        "file": sql('./v1/teraform.sql'),
+        "params": []
+    }
+]
 module.exports = (expressionName, expressionPK, schema, lvf) => ({
     "TransactionLock": new PreparedStatement({ name: 'TransactionLock', text: `SELECT pg_advisory_xact_lock(hashtext($1)) as "Locked";` }),
     "FetchState": new PreparedStatement({
@@ -31,10 +37,5 @@ module.exports = (expressionName, expressionPK, schema, lvf) => ({
         WHERE proname = $[LVF] AND n.nspname::TEXT=$[schema])`, { "schema": schema, "LVF": lvf })
     }),
     "CheckSchemaVersion": new PreparedStatement({ name: 'CheckSchemaVersionL', text: pgPromise.as.format(`SELECT $[LVF:name]() AS "LambdaVersion";`, { "LVF": lvf }) }),
-    "Schema0.0.1": [
-        {
-            "file": sql('./v1/teraform.sql'),
-            "params": []
-        }
-    ],
+    "Schema0": schema0,
 })

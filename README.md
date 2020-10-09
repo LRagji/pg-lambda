@@ -77,8 +77,8 @@ Mode 1: Simple Que with multiple publishers and multiple subscribers and message
 
 1. Authors :heart: love :heart: for Open Source.
 2. [pg-promise](https://www.npmjs.com/package/pg-promise).
-2. [jsonata](https://www.npmjs.com/package/jsonata) Waiting on [PR](https://github.com/jsonata-js/jsonata/pull/478).
-2. [pg-que](https://www.npmjs.com/package/pg-que).
+3. [jsonata](https://www.npmjs.com/package/jsonata) Waiting on [PR](https://github.com/jsonata-js/jsonata/pull/478).
+4. [pg-boot](https://www.npmjs.com/package/pg-boot)
 
 ## Contributions
 
