@@ -14,12 +14,12 @@ const sleep = (sleepTime) => new Promise((a, r) => setTimeout(a, sleepTime));
 
 const readConfigParams = {
     connectionString: defaultConectionString,
-    application_name: "Example1-Queue-Reader",
+    application_name: "Lambda-Reader",
     max: 4 //4 readers
 };
 const writeConfigParams = {
     connectionString: defaultConectionString,
-    application_name: "Example1-Queue-Writer",
+    application_name: "Lambda-Writer",
     max: 2 //2 Writer
 };
 const pgReader = pgp(readConfigParams);

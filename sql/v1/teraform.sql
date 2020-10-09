@@ -7,9 +7,3 @@ CREATE TABLE $1:name
     "Value" jsonb,
     CONSTRAINT $2:name PRIMARY KEY ("Name")
 )WITH (FILLFACTOR = 50);
-
-
-CREATE OR REPLACE FUNCTION $4:name ()
-    RETURNS text
-    LANGUAGE SQL
-AS $$ SELECT $3 $$;

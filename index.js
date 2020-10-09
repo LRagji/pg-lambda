@@ -2,20 +2,19 @@ const pg = require('pg-promise');
 const qType = require('pg-que');
 const crypto = require('crypto');
 const queries = require('./sql/queries');
-const schemaVersion = "0.0.1";
+const schemaVersion = 0;
 const contractorType = require('./worker-manager');
 const sleep = (sleepTime) => new Promise((a, r) => setTimeout(a, sleepTime));
 const previousStep = 'pstep';
+const pgBootNS = require("pg-boot");
 
 module.exports = class PgLambda {
 
     #readerPG;
     #writerPG;
-    #schemaInitialized = false;
     #queries;
     #expressionName;
     #expressionNamePK;
-    #LambdaVersionFunctionName;
     #expression;
     #inputQ;
     #outputQ;
@@ -23,20 +22,19 @@ module.exports = class PgLambda {
     #contractor;
     #processOptions
     #currentOperation;
+    #pgBoot;
 
     constructor(name, inputQ, outputQ, expression, stateStore, workers = 0) {
 
-        name = crypto.createHash('md5').update(name).digest('hex');
-
+        this.#expressionName = crypto.createHash('md5').update("L-" + name).digest('hex');
         this.#readerPG = stateStore.readerPG;
         this.#writerPG = stateStore.writerPG;
-        this.#expressionName = "L-" + name;
         this.#expressionNamePK = this.#expressionName + "-PK";
-        this.#LambdaVersionFunctionName = "LVF-" + name;
-        this.#queries = queries(this.#expressionName, this.#expressionNamePK, (this.#readerPG.$config.options.schema || 'public'), this.#LambdaVersionFunctionName);
+        this.#queries = queries(this.#expressionName, this.#expressionNamePK);
         this.#expression = expression;
         this.#inputQ = inputQ;
         this.#outputQ = outputQ;
+        this.#pgBoot = new pgBootNS.PgBoot(this.#expressionName);
 
         this.#contractor = new contractorType(workers);
         this.#initialize = this.#initialize.bind(this);
@@ -47,31 +45,22 @@ module.exports = class PgLambda {
     }
 
     #initialize = async (version) => {
-        if (this.#schemaInitialized === true) return;
-
-
-        await this.#writerPG.tx(async transaction => {
-            await transaction.one(this.#queries.TransactionLock, [("Lambda" + version)]);
-
-            let someVersionExists = await this.#readerPG.one(this.#queries.VersionFunctionExists);
-            if (someVersionExists.exists === true) {
-                const existingVersion = await this.#readerPG.one(this.#queries.CheckSchemaVersion);
-                if (existingVersion.LambdaVersion === version) {
-                    this.#schemaInitialized = true;
-                    return;
-                }
-            }
-
-            for (let idx = 0; idx < this.#queries.Schema0.length; idx++) {
-                let step = this.#queries.Schema0[idx];
-                step.params.push(this.#expressionName);
-                step.params.push(this.#expressionNamePK);
-                step.params.push(version);
-                step.params.push(this.#LambdaVersionFunctionName);
-                await transaction.none(step.file, step.params);
+        return this.#pgBoot.checkVersion(this.#writerPG, version, async (transaction, dbVersion) => {
+            switch (dbVersion) {
+                case -1: //First time install
+                    for (let idx = 0; idx < this.#queries.Schema0.length; idx++) {
+                        let step = this.#queries.Schema0[idx];
+                        step.params = [];//Need to reset this as it is a singleton object.
+                        step.params.push(this.#expressionName);
+                        step.params.push(this.#expressionNamePK);
+                        await transaction.none(step.file, step.params);
+                    };
+                    break;
+                default:
+                    console.error("Unknown schema version " + dbVersion);
+                    break;
             };
         });
-        this.#schemaInitialized = true;
     }
 
     async startProcessing(options = { maxsteps: 100, readFrequency: 1000, messageAcquiredTimeout: 3600, retry: 10 }) {
