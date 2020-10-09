@@ -19,4 +19,5 @@ export default class PgLambda {
     async startProcessing(options?: StartOptions);
     async stopProcessing();
     async dispose();
+    async state():Promise<Object>;
 }

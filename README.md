@@ -6,6 +6,7 @@ This package is an implementation of data transformational pipeline based on JSO
 3. Message persistence with postgres.
 4. Can be used with H-Scaled services or with mutiple threads within a single process.
 5. Pause and Resume execution.
+6. Statefull Lambda's.
 
 ## Getting Started
 

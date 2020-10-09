@@ -43,17 +43,30 @@ const runningAverageExpression = `{
      }
 }`;
 const stateStore = { "readerPG": pgReader, "writerPG": pgWriter };
-const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverageExpression, stateStore);
+const RunningAverageLambda = new lambdaType("Bit", inputQ, outputQ, runningAverageExpression, stateStore);
 
 let counter = 1000;
 main = async () => {
+    console.time("Data Ingested");
     while (counter > 0) {
         await inputQ.enque([{ "data": counter }]);
         counter--;
     }
-    await BitFetcherLambda.startProcessing();
-    await sleep(15000);
-    await BitFetcherLambda.stopProcessing();
+    console.timeEnd("Data Ingested");
+
+    let lastState;
+    let state
+    let delayCounter = 1;
+    do {
+        lastState = state;
+        await RunningAverageLambda.startProcessing();
+        await sleep(5000);
+        await RunningAverageLambda.stopProcessing();
+        state = await RunningAverageLambda.state();
+        console.log(`State after ${5 * delayCounter} Seconds: ${JSON.stringify(state)}`);
+        delayCounter++;
+    }
+    while (JSON.stringify(state) != JSON.stringify(lastState));
 }
 
 validate = async () => {
@@ -95,7 +108,7 @@ main()
             .finally(() => {
                 console.timeEnd("Validate");
                 console.time("Dispose");
-                BitFetcherLambda.dispose()
+                RunningAverageLambda.dispose()
                     .finally(() => {
                         pgp.end();
                         console.timeEnd("Dispose");

@@ -26,7 +26,7 @@ module.exports = class PgLambda {
 
     constructor(name, inputQ, outputQ, expression, stateStore, workers = 0) {
 
-        this.#expressionName = crypto.createHash('md5').update("L-" + name).digest('hex');
+        this.#expressionName = "L-" + crypto.createHash('md5').update(name).digest('hex');
         this.#readerPG = stateStore.readerPG;
         this.#writerPG = stateStore.writerPG;
         this.#expressionNamePK = this.#expressionName + "-PK";
@@ -42,6 +42,7 @@ module.exports = class PgLambda {
         this.dispose = this.dispose.bind(this);
         this.startProcessing = this.startProcessing.bind(this);
         this.stopProcessing = this.stopProcessing.bind(this);
+        this.state = this.state.bind(this);
     }
 
     #initialize = async (version) => {
@@ -97,6 +98,11 @@ module.exports = class PgLambda {
         await this.#contractor.dispose();
         if (this.#inputQ) this.#inputQ = undefined;
         if (this.#outputQ) this.#outputQ = undefined;
+    }
+
+    async state() {
+        let state = await this.#readerPG.any(this.#queries.FetchState);
+        return state != undefined ? state[0] : undefined;
     }
 
     #process = () => {
