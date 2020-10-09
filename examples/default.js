@@ -45,69 +45,60 @@ const runningAverageExpression = `{
 const stateStore = { "readerPG": pgReader, "writerPG": pgWriter };
 const BitFetcherLambda = new lambdaType("Bit", inputQ, outputQ, runningAverageExpression, stateStore);
 
+let counter = 1000;
 main = async () => {
-    let ctr = 1000;
-    console.log("Expected answer: " + ((ctr * (ctr + 1) / 2) / ctr));
-    while (ctr > 0) {
-        await inputQ.enque([{ "data": ctr }]);
-        ctr--;
+    while (counter > 0) {
+        await inputQ.enque([{ "data": counter }]);
+        counter--;
     }
     await BitFetcherLambda.startProcessing();
-    //await sleep(2000);
-    //(ctr*(ctr+1))/ctr
+    await sleep(15000);
+    await BitFetcherLambda.stopProcessing();
 }
 
-main();
-// console.time("Application");
-// main().then((r) => {
-//     BitFetcherLambda.stopProcessing().finally(() => {
-//         console.timeEnd("Application");
-//         BitFetcherLambda.dispose();
-//         inputQ.dispose();
-//         outputQ.dispose();
-//     })
-// })
+validate = async () => {
+    counter = 1000;
+    let matches = counter;
+    let expected;
+    let summed = counter;
+    let continueLoop;
+    do {
+        let payload = await outputQ.tryDeque();
+        continueLoop = payload !== undefined;
+        if (!continueLoop) continue;
+        let actual = parseFloat(payload.Payload.data);
+        continueLoop = !Number.isNaN(actual);
+        if (!continueLoop) continue;
+        expected = summed / ((1000 - counter) === 0 ? 1 : ((1000 - counter) + 1));
+        if (expected != actual) {
+            console.warn(`Expected: ${expected} Actual: ${actual}`);
+        }
+        else {
+            matches--;
+        }
+        counter--;
+        summed += counter;
+        if (await outputQ.tryAcknowledge(payload.AckToken) == false) {
+            console.log("Ack failed");
+        }
+    }
+    while (continueLoop)
+    console.log("Pending Matches:" + matches);
+};
 
-// {
-//     "output":(($exists(state.sum.value)?state.sum.value:0)+input)/(($exists(state.count.value)?state.coun.valuet:0)+1),
-//     "state":{
-//         "count":{
-//             "value":($exists(state.count.value)?state.coun.valuet:0)+1,
-//             "expiry":100
-//         },
-//         "sum":{
-//             "value":($exists(state.sum.value)?state.sum.value:0)+input,
-//             "expiry":100
-//         }
-//     }
-// }
-
-// OUTPUT
-// {
-//     "output": 2,
-//     "state": {
-//         "count": {
-//             "value": 1,
-//             "expiry": 100
-//         },
-//         "sum": {
-//             "value": 2,
-//             "expiry": 100
-//         }
-//     }
-// }
-
-//FORMAT
-// {
-//     "input": 1,
-//     "state": {
-//       "count": {
-//         "value": 1,
-//         "expiry": 100
-//       },
-//       "sum": {
-//         "value": 1,
-//         "expiry": 100
-//       }
-//     }
-//   }
+console.time("Application");
+main()
+    .finally(() => {
+        console.timeEnd("Application");
+        console.time("Validate");
+        validate()
+            .finally(() => {
+                console.timeEnd("Validate");
+                console.time("Dispose");
+                BitFetcherLambda.dispose()
+                    .finally(() => {
+                        pgp.end();
+                        console.timeEnd("Dispose");
+                    });
+            });
+    });
